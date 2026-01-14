@@ -18,8 +18,13 @@ source.include_exts = py,png,jpg,kv,json,ttf
 # Application version
 version = 0.1
 
-# Application requirements
+# --- FIXED REQUIREMENTS ---
+# Added pillow, arabic_reshaper, and python-bidi
 requirements = python3,kivy==2.3.0,kivymd==1.2.0,pillow,arabic_reshaper,python-bidi,kivmob,android
+
+# --- CRITICAL FIX FOR ARABIC ---
+# This line tells Android to include the engines that connect Arabic letters
+android.dependencies = libharfbuzz, libfribidi
 
 # (str) Presplash of the application
 presplash.filename = %(source.dir)s/data/presplash.png
@@ -33,10 +38,6 @@ orientation = portrait
 # Fullscreen
 fullscreen = 0
 
-# OSX settings
-osx.python_version = 3
-osx.kivy_version = 2.3.0
-
 #
 # Android specific
 #
@@ -44,10 +45,9 @@ osx.kivy_version = 2.3.0
 # Permissions
 android.permissions = INTERNET,ACCESS_NETWORK_STATE
 
-# Android NDK version
+# Android API and NDK
+android.api = 33
 android.ndk = 25b
-
-# Accept SDK licenses automatically
 android.accept_sdk_license = True
 
 # Gradle dependencies (AdMob)
@@ -59,8 +59,10 @@ android.build_tools_version = 33.0.0
 # Enable AndroidX
 android.enable_androidx = True
 
-
+# --- ASSETS PATH ---
+# This ensures your Amiri-Regular.ttf font is actually included
 android.add_assets = assets/fonts
+
 # Gradle repositories
 android.gradle_repositories = google(),mavenCentral()
 
@@ -76,23 +78,7 @@ android.allow_backup = True
 # Debug artifact format
 android.debug_artifact = apk
 
-#
-# iOS specific
-#
-
-ios.kivy_ios_url = https://github.com/kivy/kivy-ios
-ios.kivy_ios_branch = master
-
-ios.ios_deploy_url = https://github.com/phonegap/ios-deploy
-ios.ios_deploy_branch = 1.10.0
-
-ios.codesign.allowed = false
-
-
 [buildozer]
-
-# Log level
+# Log level (2 for full debug info)
 log_level = 2
-
-# Warn if run as root
 warn_on_root = 1
