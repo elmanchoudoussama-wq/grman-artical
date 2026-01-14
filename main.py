@@ -15,6 +15,7 @@ from kivymd.uix.dialog import MDDialog
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.modalview import ModalView
 from kivy.core.text import LabelBase
+from kivy.resources import resource_add_path, resource_find
 import json
 import random
 import os
@@ -27,7 +28,7 @@ try:
 except ImportError:
     HAS_KIVMOB = False
 
-# --- ARABIC SUPPORT ---
+# --- 2. ARABIC SUPPORT (FIXED) ---
 try:
     import arabic_reshaper
     from bidi.algorithm import get_display
@@ -36,12 +37,15 @@ except ImportError:
     HAS_ARABIC_LIBS = False
 
 def fix_arabic(text):
-    if not text: return ""
-    if HAS_ARABIC_LIBS:
-        try:
-            return get_display(arabic_reshaper.reshape(text))
-        except: return text
-    return text
+    if not text or not HAS_ARABIC_LIBS:
+        return text
+    try:
+        # Reshape connects the letters, get_display fixes the direction
+        reshaped_text = arabic_reshaper.reshape(text)
+        return get_display(reshaped_text)
+    except Exception as e:
+        print(f"Arabic Error: {e}")
+        return text
 
 # --- AD SETTINGS ---
 class AdSettings:
@@ -62,7 +66,7 @@ class AdSettings:
         with open(self.AD_FILE, 'w') as f: json.dump(self.data, f)
     
     def check_24h_ad_required(self):
-        return (time.time() - self.data.get('last_24h_ad', 0)) >= 900 # 3 hours for testing
+        return (time.time() - self.data.get('last_24h_ad', 0)) >= 900 
     
     def update_24h_ad_watched(self):
         self.data['last_24h_ad'] = time.time()
@@ -79,20 +83,16 @@ class AdSettings:
         self.data['question_count'] = 0
         self.save_ad_data()
 
-# --- MOCK AD DIALOGS (For PC Testing) ---
 class MockAdDialog(ModalView):
     def __init__(self, title, message, on_complete, **kwargs):
         super().__init__(**kwargs)
         self.size_hint = (0.8, 0.4)
         self.auto_dismiss = False
         self.on_complete = on_complete
-        
         card = MDBoxLayout(orientation='vertical', padding="20dp", spacing="10dp")
         card.md_bg_color = (1, 1, 1, 1)
-        
         card.add_widget(MDLabel(text=title, halign='center', font_style='H6'))
         card.add_widget(MDLabel(text=message, halign='center'))
-        
         btn = MDFillRoundFlatButton(text="SIMULATE WATCH AD (PC ONLY)", pos_hint={'center_x': 0.5})
         btn.bind(on_release=self.finish)
         card.add_widget(btn)
@@ -102,7 +102,7 @@ class MockAdDialog(ModalView):
         self.dismiss()
         if self.on_complete: self.on_complete()
 
-# --- KV LAYOUT (Kept your structure) ---
+# --- KV LAYOUT (FIXED SYNTAX) ---
 KV_STRING = '''
 ScreenManager:
     StageSelectScreen:
@@ -116,11 +116,9 @@ ScreenManager:
     MDBoxLayout:
         orientation: 'vertical'
         md_bg_color: 0.95, 0.95, 0.95, 1
-        
         MDTopAppBar:
-            title: app.get_arabic_title()
+            title: app.arabic_title
             font_name: "Amiri"
-
         MDScrollView:
             MDBoxLayout:
                 id: stage_grid
@@ -128,8 +126,6 @@ ScreenManager:
                 adaptive_height: True
                 padding: "20dp"
                 spacing: "15dp"
-
-        # Spacer for Banner Ad
         BoxLayout:
             size_hint_y: None
             height: "50dp"
@@ -142,19 +138,16 @@ ScreenManager:
     MDBoxLayout:
         orientation: 'vertical'
         md_bg_color: 1, 1, 1, 1
-
         MDTopAppBar:
             title: app.question_number
             left_action_items: [["arrow-left", lambda x: app.handle_stage_quit()]]
             elevation: 2
-
         MDScrollView:
             MDBoxLayout:
                 orientation: 'vertical'
                 adaptive_height: True
                 padding: "20dp"
                 spacing: "20dp"
-                
                 MDLabel:
                     text: app.sentence
                     halign: "center"
@@ -162,71 +155,60 @@ ScreenManager:
                     size_hint_y: None
                     height: self.texture_size[1]
                     text_size: self.width, None
-
                 MDGridLayout:
                     cols: 3
                     spacing: "10dp"
                     size_hint_y: None
                     height: "60dp"
-                    
                     MDFillRoundFlatButton:
                         id: article_btn1
                         text: app.article_options[0]
                         size_hint_x: 1
                         on_release: app.select_article(self.text)
-                    
                     MDFillRoundFlatButton:
                         id: article_btn2
                         text: app.article_options[1]
                         size_hint_x: 1
                         on_release: app.select_article(self.text)
-
                     MDFillRoundFlatButton:
                         id: article_btn3
                         text: app.article_options[2]
                         size_hint_x: 1
                         on_release: app.select_article(self.text)
-
                 MDLabel:
                     text: "Bedeutung:"
                     halign: "center"
                     font_style: "Subtitle1"
                     size_hint_y: None
                     height: "30dp"
-
                 MDBoxLayout:
                     orientation: 'vertical'
                     spacing: "10dp"
                     adaptive_height: True
-                    
                     MDFillRoundFlatButton:
                         id: meaning_btn1
                         text: app.meaning_options[0]
                         font_name: "Amiri"
                         size_hint_x: 1
                         on_release: app.select_meaning(self.text)
-                    
                     MDFillRoundFlatButton:
                         id: meaning_btn2
                         text: app.meaning_options[1]
                         font_name: "Amiri"
                         size_hint_x: 1
                         on_release: app.select_meaning(self.text)
-                    
                     MDFillRoundFlatButton:
                         id: meaning_btn3
                         text: app.meaning_options[2]
                         font_name: "Amiri"
                         size_hint_x: 1
                         on_release: app.select_meaning(self.text)
-
                 MDFillRoundFlatButton:
                     text: "PRÜFEN"
                     size_hint_x: 1
                     disabled: not app.submit_enabled
                     md_bg_color: (0, 0.7, 0, 1) if self.disabled == False else (0.8, 0.8, 0.8, 1)
                     on_release: app.check_answer()
-
                 MDLabel:
                     text: app.result_text
                     halign: "center"
@@ -235,8 +217,6 @@ ScreenManager:
                     font_style: "H6"
                     size_hint_y: None
                     height: self.texture_size[1]
-        
-        # Spacer for Banner Ad
         BoxLayout:
             size_hint_y: None
             height: "50dp"
@@ -247,18 +227,15 @@ ScreenManager:
         padding: "30dp"
         spacing: "20dp"
         md_bg_color: 1, 0.95, 0.95, 1
-
         MDLabel:
             text: "Erklärung"
             halign: "center"
             font_style: "H4"
-        
         MDLabel:
             text: app.explanation_text
             halign: "center"
             font_style: "Body1"
             font_name: "Amiri"
-
         MDFillRoundFlatButton:
             text: "Weiter"
             pos_hint: {"center_x": 0.5}
@@ -268,8 +245,7 @@ ScreenManager:
 class StageSelectScreen(Screen): pass
 class MainScreen(Screen): pass
 class ResultScreen(Screen): pass
-#...............................................................................
-      
+
 class GermanArticleTrainer(MDApp):
     sentence = StringProperty("")
     question_number = StringProperty("Frage #1")
@@ -278,44 +254,46 @@ class GermanArticleTrainer(MDApp):
     submit_enabled = BooleanProperty(False)
     result_text = StringProperty("")
     explanation_text = StringProperty("")
+    arabic_title = StringProperty("")
     current_stage = NumericProperty(1)
     unlocked_stages = NumericProperty(1)
     QUESTIONS_PER_STAGE = 100
     
-    # --- AD CONFIGURATION ---
-    # REPLACE THESE WITH YOUR REAL IDs FROM ADMOB CONSOLE
-    APP_ID = "ca-app-pub-9298331856947532~1106493604" # Test ID
-    
-    BANNER_ID = "ca-app-pub-3940256099942544/6300978111" # Test ID
-    
-    INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712" # Test ID
-
-
-    def get_arabic_title(self):
-        return fix_arabic("Artical lernen")
+    # --- AD CONFIGURATION (FIXED) ---
+    APP_ID = "ca-app-pub-9298331856947532~1106493604"
+    BANNER_ID = "ca-app-pub-3940256099942544/6300978111"
+    INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712"
 
     def build(self):
-        # Font Registration
-        font_path = 'assets/fonts/Amiri-Regular.ttf'
-        if os.path.exists(font_path):
-            LabelBase.register(name='Amiri', fn_regular=font_path)
+        # 1. Tell Kivy where to look for fonts and images
+        if os.path.exists('assets/fonts'):
+            resource_add_path(os.path.abspath('assets/fonts'))
         
+        # 2. Register the font correctly
+        # We look for the filename only because resource_add_path handles the folder
+        font_path = resource_find('Amiri-Regular.ttf')
+        
+        if font_path:
+            LabelBase.register(name='Amiri', fn_regular=font_path)
+            print(f"Font registered successfully from: {font_path}")
+        else:
+            print("ERROR: Could not find Amiri-Regular.ttf in assets/fonts/")
+
+        self.arabic_title = fix_arabic("Artical lernen")
         self.theme_cls.primary_palette = "Blue"
         self.ad_settings = AdSettings()
 
-        # --- INITIALIZE KIVMOB ---
+        # Initialize Ads (KivMob)
         self.ads = None
         if platform == 'android' and HAS_KIVMOB:
-            # Initialize KivMob
-            self.ads = KivMob(self.APP_ID)
-            
-            # Setup Banner
-            self.ads.new_banner(self.BANNER_ID, top_pos=False) # False = Bottom
-            self.ads.request_banner()
-            
-            # Setup Interstitial (Full Screen)
-            self.ads.new_interstitial(self.INTERSTITIAL_ID)
-            self.ads.request_interstitial()
+            try:
+                self.ads = KivMob(self.APP_ID)
+                self.ads.new_banner(self.BANNER_ID, top_pos=False)
+                self.ads.request_banner()
+                self.ads.new_interstitial(self.INTERSTITIAL_ID)
+                self.ads.request_interstitial()
+            except Exception as e: 
+                print(f"KivMob Error: {e}")
         
         return Builder.load_string(KV_STRING)
 
@@ -323,41 +301,18 @@ class GermanArticleTrainer(MDApp):
         self.load_progress()
         self.ensure_data_exists()
         self.build_stage_menu()
-        
-        # Show Banner immediately
-        if self.ads:
-            self.ads.show_banner()
-            
-        # Check 24h Ad
+        if self.ads: self.ads.show_banner()
         Clock.schedule_once(self.check_24h_ad, 1)
 
-    # --- AD LOGIC WRAPPERS ---
     def show_interstitial_ad(self, on_close_callback=None):
-        """Logic to show ad on Android or Mock dialog on PC"""
-        self._ad_callback = on_close_callback
-        
         if self.ads:
-            # Real Android Ad
             if self.ads.is_interstitial_loaded():
                 self.ads.show_interstitial()
-                # Request next ad immediately for future use
                 self.ads.request_interstitial()
-                if on_close_callback:
-                    on_close_callback()
-            else:
-                # Ad wasn't ready, request one and proceed
-                self.ads.request_interstitial()
-                if on_close_callback:
-                    on_close_callback()
+            if on_close_callback: on_close_callback()
         else:
-            # PC / Mock Ad
-            MockAdDialog(
-                title="Interstitial Ad", 
-                message="This is where a full screen Google ad appears.",
-                on_complete=on_close_callback
-            ).open()
+            MockAdDialog(title="Ad", message="Full screen ad.", on_complete=on_close_callback).open()
 
-    # --- DATA & GAME LOGIC ---
     def load_progress(self):
         if os.path.exists('progress.json'):
             try:
@@ -368,7 +323,6 @@ class GermanArticleTrainer(MDApp):
     def save_progress(self):
         with open('progress.json', 'w') as f:
             json.dump({'unlocked': self.unlocked_stages}, f)
-    
 
     def build_stage_menu(self):
         screen = self.root.get_screen('stage_select')
@@ -380,17 +334,12 @@ class GermanArticleTrainer(MDApp):
         for i in range(1, 101):
             is_locked = i > self.unlocked_stages
             btn = MDFillRoundFlatButton(
-                text=f"Stage{i}" if not is_locked else f"{i} Looked",
+                text=f"Stage {i}" if not is_locked else f"{i} Locked",
                 size_hint=(1, None),
                 disabled=is_locked,
-                md_bg_color=self.theme_cls.primary_color if not is_locked else (0.7, 0.7, 0.7, 1),
                 on_release=lambda x, s=i: self.load_stage(s)
             )
             self.button_grid.add_widget(btn)
-        
-        
-        
-        
         self.update_grid_cols()
         Window.bind(on_resize=self.update_grid_cols)
 
@@ -401,136 +350,103 @@ class GermanArticleTrainer(MDApp):
     def load_stage(self, stage_number):
         self.current_stage = stage_number
         try:
-            with open(f'data/stages/stage_{stage_number}.json', 'r', encoding='utf-8') as f:
+            path = f'data/stages/stage_{stage_number}.json'
+            with open(path, 'r', encoding='utf-8') as f:
                 self.nouns = json.load(f)
             self.unused_nouns = list(self.nouns)
             random.shuffle(self.unused_nouns)
             self.question_count = 1
             self.correct_count = 0
-            
             self.ad_settings.increment_question_count()
             self.generate_question()
             self.root.current = 'main'
-            
-        except FileNotFoundError:
-            print(f"Error: Missing Stage {stage_number}")
+        except: print("Stage File Missing")
+
+    def generate_question(self):
+        if not self.unused_nouns:
+            self.unused_nouns = list(self.nouns)
+            random.shuffle(self.unused_nouns)
+        
+        noun_data = self.unused_nouns.pop()
+        cases = {'Nominativ': {'der':'der','die':'die','das':'das'},
+                 'Akkusativ': {'der':'den','die':'die','das':'das'},
+                 'Dativ': {'der':'dem','die':'der','das':'dem'}}
+        
+        case = random.choice(['Nominativ', 'Akkusativ', 'Dativ'])
+        self.correct_art = cases[case][noun_data['article']]
+        self.correct_mean = fix_arabic(noun_data['meaning'])
+
+        # Options
+        all_art = ['der', 'die', 'das', 'den', 'dem']
+        self.article_options = random.sample(all_art, 3)
+        if self.correct_art not in self.article_options: self.article_options[0] = self.correct_art
+        random.shuffle(self.article_options)
+
+        other_m = [fix_arabic(n['meaning']) for n in self.nouns if n['meaning'] != noun_data['meaning']]
+        self.meaning_options = [self.correct_mean] + random.sample(other_m, 2) if len(other_m) >= 2 else [self.correct_mean, "X", "Y"]
+        random.shuffle(self.meaning_options)
+
+        self.current_question = noun_data
+        self.sentence = noun_data['sentences'].get(case, "")
+        self.question_number = f"Stufe {self.current_stage} - {self.question_count}/{self.QUESTIONS_PER_STAGE}"
+        self.submit_enabled = False
+        self.result_text = ""
+        self.reset_button_colors()
+
+    def select_article(self, t):
+        self.selected_art = t
+        self.update_colors('article_btn', t)
+        self.submit_enabled = hasattr(self, 'selected_art') and hasattr(self, 'selected_mean')
+
+    def select_meaning(self, t):
+        self.selected_mean = t
+        self.update_colors('meaning_btn', t)
+        self.submit_enabled = hasattr(self, 'selected_art') and hasattr(self, 'selected_mean')
 
     def check_answer(self):
-        article_correct = (self.selected_article_choice == self.current_question['article_in_case'])
-        meaning_correct = (self.selected_meaning_choice == self.current_question['meaning'])
-        self.apply_result_colors()
-
-        if article_correct and meaning_correct:
+        is_correct = (self.selected_art == self.correct_art and self.selected_mean == self.correct_mean)
+        if is_correct:
             self.result_text = "✅ Richtig!"
             self.correct_count += 1
             Clock.schedule_once(lambda dt: self.next_question(), 1.0)
         else:
             self.result_text = "❌ Falsch"
-            self.explanation_text = f"Wort: {self.current_question['noun']}\nBedeutung: {self.current_question['meaning']}\nFall: {self.current_question['case']}\nRichtig: {self.current_question['article_in_case']}"
+            self.explanation_text = fix_arabic(f"Wort: {self.current_question['word']}\nBedeutung: {self.current_question['meaning']}\nRichtig: {self.correct_art}")
             Clock.schedule_once(lambda dt: setattr(self.root, 'current', 'result'), 1.0)
 
     def next_question(self):
         if self.question_count >= self.QUESTIONS_PER_STAGE:
             self.finish_stage()
-            return
-        self.question_count += 1
-        self.ad_settings.increment_question_count()
-        self.generate_question()
-        self.root.current = 'main'
+        else:
+            self.question_count += 1
+            self.generate_question()
+            self.root.current = 'main'
 
     def finish_stage(self):
-        score_percent = (self.correct_count / self.QUESTIONS_PER_STAGE) * 100
-        success = score_percent >= 95
-        msg = f"Du hast {self.correct_count}/{self.QUESTIONS_PER_STAGE} richtig ({score_percent:.0f}%)."
-        if success:
-            title = " Bestanden! 🎉"
+        score = (self.correct_count / self.QUESTIONS_PER_STAGE) * 100
+        if score >= 95:
             if self.current_stage == self.unlocked_stages:
                 self.unlocked_stages += 1
                 self.save_progress()
-                self.build_stage_menu()
-        else:
-            title = "Nicht genug Punkte"
-            msg += "\nDu brauchst 95%."
-
-        dialog = MDDialog(
-            title=title, text=msg,
-            buttons=[MDFlatButton(text="OK", on_release=lambda x: self.close_dialog_and_exit(dialog))]
-        )
-        dialog.open()
+            msg = "Bestanden! 🎉"
+        else: msg = "Nicht genug Punkte (95% benötigt)"
         
-        # SHOW AD AFTER STAGE
+        MDDialog(title="Ergebnis", text=msg, buttons=[MDFlatButton(text="OK", on_release=lambda x: self.go_back_to_menu())]).open()
         self.show_interstitial_ad()
 
-    def close_dialog_and_exit(self, dialog):
-        dialog.dismiss()
-        self.go_back_to_menu()
+    def go_back_to_menu(self, *args):
+        self.root.current = 'stage_select'
+        self.build_stage_menu()
 
     def handle_stage_quit(self):
-        if self.ad_settings.check_stage_quit_ad():
-            # Show Ad then quit
-            self.show_interstitial_ad(on_close_callback=self.go_back_to_menu)
-        else:
-            self.go_back_to_menu()
-
-    def go_back_to_menu(self):
-        self.root.transition.direction = 'right'
-        self.root.current = 'stage_select'
-        self.ad_settings.reset_question_count()
-
-    def generate_question(self):
-        self.selected_article_choice = ""
-        self.selected_meaning_choice = ""
-        self.submit_enabled = False
-        self.result_text = ""
-
-        if not self.unused_nouns:
-            self.unused_nouns = list(self.nouns)
-            random.shuffle(self.unused_nouns)
-        noun_data = self.unused_nouns.pop()
-
-        cases = {'Nominativ': {'der': 'der', 'die': 'die', 'das': 'das'},
-                 'Akkusativ': {'der': 'den', 'die': 'die', 'das': 'das'},
-                 'Dativ': {'der': 'dem', 'die': 'der', 'das': 'dem'}}
-        case = random.choice(['Nominativ', 'Akkusativ', 'Dativ'])
-        correct_article = cases[case][noun_data['article']]
-        correct_meaning = fix_arabic(noun_data['meaning'])
-
-        all_articles = ['der', 'die', 'das', 'den', 'dem']
-        wrong_articles = [a for a in all_articles if a != correct_article]
-        article_choices = [correct_article] + random.sample(wrong_articles, 2)
-        random.shuffle(article_choices)
-
-        other_meanings = list(set([fix_arabic(n['meaning']) for n in self.nouns if fix_arabic(n['meaning']) != correct_meaning]))
-        if len(other_meanings) >= 2: meaning_choices = [correct_meaning] + random.sample(other_meanings, 2)
-        else: meaning_choices = [correct_meaning, "Wort 1", "Wort 2"]
-        random.shuffle(meaning_choices)
-
-        self.current_question = {'noun': noun_data['word'], 'meaning': correct_meaning,
-                                 'sentence': noun_data['sentences'].get(case, ""), 'case': case,
-                                 'article_in_case': correct_article}
-        self.sentence = self.current_question['sentence']
-        self.question_number = f"Stufe {self.current_stage} - {self.question_count}/{self.QUESTIONS_PER_STAGE}"
-        self.article_options = article_choices
-        self.meaning_options = meaning_choices
-        self.reset_button_colors()
+        self.show_interstitial_ad(on_close_callback=self.go_back_to_menu)
 
     def reset_button_colors(self):
         screen = self.root.get_screen('main')
         for i in range(1, 4):
             for p in ['article_btn', 'meaning_btn']:
                 btn = screen.ids.get(f'{p}{i}')
-                if btn:
-                    btn.md_bg_color = self.theme_cls.primary_color
-
-    def select_article(self, t):
-        self.selected_article_choice = t
-        self.update_colors('article_btn', t)
-        self.submit_enabled = bool(self.selected_article_choice and self.selected_meaning_choice)
-
-    def select_meaning(self, t):
-        self.selected_meaning_choice = t
-        self.update_colors('meaning_btn', t)
-        self.submit_enabled = bool(self.selected_article_choice and self.selected_meaning_choice)
+                if btn: btn.md_bg_color = self.theme_cls.primary_color
 
     def update_colors(self, prefix, txt):
         screen = self.root.get_screen('main')
@@ -538,31 +454,12 @@ class GermanArticleTrainer(MDApp):
             btn = screen.ids.get(f'{prefix}{i}')
             if btn: btn.md_bg_color = (0.1, 0.1, 0.4, 1) if btn.text == txt else self.theme_cls.primary_color
 
-    def apply_result_colors(self): #no needed
-        screen = self.root.get_screen('main')
-        for i in range(1, 4):
-            btn_a = screen.ids.get(f'article_btn{i}')
-            if btn_a and btn_a.text == self.current_question['article_in_case']: btn_a.md_bg_color = (0, 0.5, 0, 1)
-            elif btn_a and btn_a.text == self.selected_article_choice: btn_a.md_bg_color = (0.8, 0, 0, 1)
-            
-            btn_m = screen.ids.get(f'meaning_btn{i}')
-            if btn_m and btn_m.text == self.current_question['meaning']: btn_m.md_bg_color = (0, 0.5, 0, 1)
-            elif btn_m and btn_m.text == self.selected_meaning_choice: btn_m.md_bg_color = (0.8, 0, 0, 1)
-
-    # --- AD CHECKS ---
-    def check_24h_ad(self, dt=None):
+    def check_24h_ad(self, dt):
         if self.ad_settings.check_24h_ad_required():
-            def on_complete():
-                self.ad_settings.update_24h_ad_watched()
-            self.show_interstitial_ad(on_complete)
-    
+            self.show_interstitial_ad(lambda: self.ad_settings.update_24h_ad_watched())
+
     def ensure_data_exists(self):
         os.makedirs('data/stages', exist_ok=True)
-        if not os.path.exists('data/stages/stage_1.json'):
-             # Create dummy data if needed
-             pass
 
 if __name__ == '__main__':
-    
-
-        GermanArticleTrainer().run()
+    GermanArticleTrainer().run()
