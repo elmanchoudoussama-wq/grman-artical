@@ -286,9 +286,9 @@ class GermanArticleTrainer(MDApp):
     # REPLACE THESE WITH YOUR REAL IDs FROM ADMOB CONSOLE
     APP_ID = "ca-app-pub-9298331856947532~1106493604" # Test ID
     
-    BANNER_ID = "ca-app-pub-9298331856947532/4147412301" # Test ID
+    BANNER_ID = "BANNER_ID = "ca-app-pub-3940256099942544/6300978111" # Test ID
     
-    INTERSTITIAL_ID = "ca-app-pub-9298331856947532/7703513932" # Test ID
+    INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712" # Test ID
 
 
     def get_arabic_title(self):
