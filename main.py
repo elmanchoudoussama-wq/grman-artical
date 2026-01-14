@@ -119,7 +119,7 @@ ScreenManager:
         
         MDTopAppBar:
             title: app.get_arabic_title()
-            font_name: "Amiri-Regular.ttf"
+            font_name: "Amiri"
 
         MDScrollView:
             MDBoxLayout:
@@ -202,21 +202,21 @@ ScreenManager:
                     MDFillRoundFlatButton:
                         id: meaning_btn1
                         text: app.meaning_options[0]
-                        font_name: "Amiri-Regular.ttf"
+                        font_name: "Amiri"
                         size_hint_x: 1
                         on_release: app.select_meaning(self.text)
                     
                     MDFillRoundFlatButton:
                         id: meaning_btn2
                         text: app.meaning_options[1]
-                        font_name: "Amiri-Regular.ttf"
+                        font_name: "Amiri"
                         size_hint_x: 1
                         on_release: app.select_meaning(self.text)
                     
                     MDFillRoundFlatButton:
                         id: meaning_btn3
                         text: app.meaning_options[2]
-                        font_name: "Amiri-Regular.ttf"
+                        font_name: "Amiri"
                         size_hint_x: 1
                         on_release: app.select_meaning(self.text)
 
@@ -257,7 +257,7 @@ ScreenManager:
             text: app.explanation_text
             halign: "center"
             font_style: "Body1"
-            font_name: "Amiri-Regular.ttf"
+            font_name: "Amiri"
 
         MDFillRoundFlatButton:
             text: "Weiter"
@@ -296,9 +296,9 @@ class GermanArticleTrainer(MDApp):
 
     def build(self):
         # Font Registration
-        font_path = 'Amiri-Regular.ttf'
+        font_path = 'assets/fonts/Amiri-Regular.ttf'
         if os.path.exists(font_path):
-            LabelBase.register(name='Amiri-Regular.ttf', fn_regular=font_path)
+            LabelBase.register(name='Amiri', fn_regular=font_path)
         
         self.theme_cls.primary_palette = "Blue"
         self.ad_settings = AdSettings()
