@@ -207,38 +207,36 @@ class GermanArticleTrainer(MDApp):
     APP_ID = "ca-app-pub-9298331856947532~1106493604"
 
     def build(self):
-        # 1. Register Paths
-        if os.path.exists('assets/fonts'):
-            resource_add_path(os.path.abspath('assets/fonts'))
+        # 1. Register Path - Try two different ways to find the folder
+        font_dir = os.path.join(os.getcwd(), 'assets', 'fonts')
+        if os.path.exists(font_dir):
+            resource_add_path(font_dir)
         
-        font_path = resource_find('Amiri-Regular.ttf')
+        # 2. Find the file
+        font_file = 'Amiri-Regular.ttf'
+        font_path = resource_find(font_file)
         
         if font_path:
             LabelBase.register(name='Amiri', fn_regular=font_path)
-            # 2. FORCE GLOBAL FONT OVERWRITE FOR KIVYMD
+            # FORCE KivyMD to use this for EVERYTHING
             self.theme_cls.font_styles.update({
-                "Button": ["Amiri", 14, False, 0.1],
-                "H4": ["Amiri", 34, False, 0.25],
+                "Button": ["Amiri", 18, False, 0.1],
                 "H5": ["Amiri", 24, False, 0],
                 "H6": ["Amiri", 20, False, 0],
-                "Subtitle1": ["Amiri", 16, False, 0],
-                "Body1": ["Amiri", 16, False, 0],
+                "Subtitle1": ["Amiri", 18, False, 0],
+                "Body1": ["Amiri", 18, False, 0],
             })
-        
-        self.arabic_title = fix_arabic("Artical lernen")
+            self.arabic_title = fix_arabic("Artical lernen")
+        else:
+            # If this happens, your folder structure in GitHub is wrong
+            self.arabic_title = "FONT NOT FOUND!"
+
         self.theme_cls.primary_palette = "Blue"
         self.ad_settings = AdSettings()
-
-        # Initialize Ads
-        self.ads = None
-        if platform == 'android' and HAS_KIVMOB:
-            try:
-                self.ads = KivMob(self.APP_ID)
-                self.ads.request_banner()
-            except: pass
-        
         return Builder.load_string(KV_STRING)
 
+        
+       
     def on_start(self):
         self.load_progress()
         self.build_stage_menu()
