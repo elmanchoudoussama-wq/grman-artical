@@ -61,7 +61,7 @@ android.enable_androidx = True
 
 # --- ASSETS PATH ---
 # This ensures your Amiri-Regular.ttf font is actually included
-android.add_assets = assets/fonts
+android.add_assets = assets
 
 # Gradle repositories
 android.gradle_repositories = google(),mavenCentral()
