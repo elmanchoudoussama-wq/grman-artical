@@ -6,99 +6,49 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # Explicitly use 22.04 for compatibility
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Cache Buildozer directories
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-            ~/.android
-            .buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+      - name: Install Buildozer
+        run: |
+          pip install --upgrade pip
+          pip install buildozer
 
-      - name: Install System Dependencies
+      - name: Install minimal dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             git zip unzip openjdk-17-jdk \
-            python3-pip python3-setuptools python3-dev \
-            libffi-dev libssl-dev libpq-dev \
+            python3-dev python3-pip \
             build-essential \
-            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
-            zlib1g-dev \
-            libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
-            libjpeg-dev libtiff5-dev libx11-dev libmtdev-dev \
-            libgles2-mesa-dev \  # Removed libgles1-mesa-dev which doesn't exist in 22.04
-            libgl1-mesa-dev \
-            xclip xsel \
+            ccache \
+            libssl-dev libffi-dev \
             autoconf automake libtool m4 cmake \
-            libharfbuzz-dev libfribidi-dev \
             pkg-config
 
-      - name: Install Buildozer and dependencies
+      - name: Build APK
+        env:
+          # Force Buildozer to download everything fresh
+          BUILD_SDK: "yes"
+          BUILD_NDK: "yes"
+          ACCEPT_SDK_LICENSE: "yes"
         run: |
-          python -m pip install --upgrade pip wheel setuptools
-          pip install buildozer cython==0.29.33 virtualenv
-
-      - name: Clean Android environment variables
-        run: |
-          # Clear any pre-existing Android environment variables
-          echo "ANDROID_HOME=" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=" >> $GITHUB_ENV
-
-      - name: Prepare Buildozer
-        run: |
-          # Initialize buildozer if spec doesn't exist
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
+          # Clean any previous build
+          rm -rf .buildozer || true
           
-          # Clean any previous builds
-          buildozer android clean || true
-
-      - name: Build APK with Buildozer
-        run: |
-          # Set log level to debug for troubleshooting
-          export BUILD_SDK=yes
-          export BUILD_NDK=yes
+          # Build with verbose output
+          buildozer -v android debug
           
-          # Build the APK with retry
-          buildozer -v android debug 2>&1 | tail -200 || \
-          buildozer android debug 2>&1 | tail -200
-
-      - name: List generated files
-        run: |
-          ls -la .buildozer/ || true
-          ls -la bin/ || true
-          find . -name "*.apk" -type f 2>/dev/null | head -10
-
-      - name: Upload APK artifact
-        if: success() && hashFiles('bin/*.apk') != ''
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: German-Article-Trainer-APK
+          name: APK
           path: bin/*.apk
-          retention-days: 7
-
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Build-Failure-Logs
-          path: |
-            .buildozer/*.log
-            .buildozer/**/*.log
-            .buildozer/**/**/*.log
-          retention-days: 7
