@@ -17,7 +17,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Cache Buildozer dependencies to speed up subsequent builds
       - name: Cache Buildozer global directory
         uses: actions/cache@v4
         with:
@@ -34,7 +33,7 @@ jobs:
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good libharfbuzz-dev \
             libfribidi-dev pkg-config libgl1-mesa-dev libgles2-mesa-dev \
             libmtdev-dev xclip xsel libjpeg-dev autoconf automake libtool \
-            cmake unzip zip openjdk-17-jdk
+            m4 cmake unzip zip openjdk-17-jdk
 
       - name: Install Buildozer and Cython
         run: |
@@ -56,12 +55,11 @@ jobs:
           # Force accept all licenses
           yes | $SDK_MANAGER --licenses || true
           
-          # Pre-install the exact build-tools versions from your spec
+          # Pre-install the exact build-tools versions
           yes | $SDK_MANAGER "build-tools;33.0.0" "platforms;android-33" "platform-tools"
 
       - name: Build with Buildozer
         run: |
-          # Buildozer will now find the licenses already accepted
           buildozer -v android debug
         env:
           ACCEPT_SDK_LICENSE: "yes"
