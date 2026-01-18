@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # Use 22.04 for better compatibility
+    runs-on: ubuntu-22.04  # Explicitly use 22.04 for compatibility
 
     steps:
       - name: Checkout code
@@ -39,64 +39,66 @@ jobs:
             zlib1g-dev \
             libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             libjpeg-dev libtiff5-dev libx11-dev libmtdev-dev \
-            libgles2-mesa-dev libgles1-mesa-dev \
+            libgles2-mesa-dev \  # Removed libgles1-mesa-dev which doesn't exist in 22.04
             libgl1-mesa-dev \
             xclip xsel \
             autoconf automake libtool m4 cmake \
-            libharfbuzz-dev libfribidi-dev
+            libharfbuzz-dev libfribidi-dev \
+            pkg-config
 
       - name: Install Buildozer and dependencies
         run: |
-          pip install --upgrade pip wheel setuptools
-          pip install buildozer cython==0.29.33
-          pip install kivy==2.1.0  # Pre-install to help with cache
+          python -m pip install --upgrade pip wheel setuptools
+          pip install buildozer cython==0.29.33 virtualenv
 
-      - name: Clean up conflicting Android tools
+      - name: Clean Android environment variables
         run: |
-          # Remove any pre-installed Android SDK/NDK that might cause conflicts
-          rm -rf /usr/local/lib/android/sdk
-          rm -rf ~/.android
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
+          # Clear any pre-existing Android environment variables
+          echo "ANDROID_HOME=" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=" >> $GITHUB_ENV
 
-      - name: Build with Buildozer (debug)
+      - name: Prepare Buildozer
         run: |
-          # Set environment variables to force Buildozer to use its own SDK
-          export ANDROID_SDK_ROOT=""
-          export ANDROID_NDK_HOME=""
-          export ANDROID_HOME=""
+          # Initialize buildozer if spec doesn't exist
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+          fi
           
-          # Initialize Buildozer and download dependencies
-          buildozer android clean
-          buildozer android update
-          
-          # Debug: show what versions we're using
-          buildozer android version
-          
-          # Build with verbose output
-          buildozer -v android debug 2>&1 | tail -100
-          
-          # If the above fails, try with less verbose output
-          buildozer android debug || true
+          # Clean any previous builds
+          buildozer android clean || true
 
-      - name: List built APKs
+      - name: Build APK with Buildozer
         run: |
+          # Set log level to debug for troubleshooting
+          export BUILD_SDK=yes
+          export BUILD_NDK=yes
+          
+          # Build the APK with retry
+          buildozer -v android debug 2>&1 | tail -200 || \
+          buildozer android debug 2>&1 | tail -200
+
+      - name: List generated files
+        run: |
+          ls -la .buildozer/ || true
           ls -la bin/ || true
+          find . -name "*.apk" -type f 2>/dev/null | head -10
 
       - name: Upload APK artifact
-        if: success()
+        if: success() && hashFiles('bin/*.apk') != ''
         uses: actions/upload-artifact@v4
         with:
           name: German-Article-Trainer-APK
           path: bin/*.apk
-          if-no-files-found: error
+          retention-days: 7
 
-      - name: Upload build logs
-        if: always()
+      - name: Upload build logs on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Build-Logs
+          name: Build-Failure-Logs
           path: |
             .buildozer/*.log
-            .buildozer/*/*.log
-          if-no-files-found: ignore
+            .buildozer/**/*.log
+            .buildozer/**/**/*.log
+          retention-days: 7
