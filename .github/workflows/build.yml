@@ -1,42 +1,75 @@
-name: Build German Artical Trainer
-on: [push]
+name: Build Android APK
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          python-version: '3.11'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt update
-          sudo apt-get remove -y libunwind-14-dev || true
-          
-          # Added libharfbuzz-dev and libfribidi-dev at the end of this list
-          sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev \
-          libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev \
-          libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-          build-essential ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-          libltdl-dev python3-dev libharfbuzz-dev libfribidi-dev
-          
-          pip3 install --user --upgrade Cython==0.29.33 virtualenv buildozer
+          sudo apt install -y \
+            build-essential \
+            git \
+            python3-dev \
+            ffmpeg \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            libswscale-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            zlib1g-dev \
+            libgstreamer1.0-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            pkg-config \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev \
+            libmtdev-dev \
+            xclip \
+            xsel \
+            libjpeg-dev \
+            autoconf \
+            automake \
+            libtool \
+            cmake \
+            unzip \
+            zip \
+            openjdk-17-jdk
+
+      - name: Install Buildozer
+        run: |
+          pip install --upgrade pip
+          pip install buildozer
+          pip install cython==0.29.33
 
       - name: Build with Buildozer
         run: |
-          export PATH=$PATH:$HOME/.local/bin
-          if [ -d ".buildozer" ]; then buildozer android clean; fi
+          # The 'clean' command ensures old broken cached versions are deleted
+          buildozer android clean
           buildozer -v android debug
         env:
-          APP_ANDROID_ACCEPT_SDK_LICENSE: "True"
+          ACCEPT_SDK_LICENSE: "yes"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GermanTrainer-APK
+          name: German-Artical-Trainer-APK
           path: bin/*.apk
