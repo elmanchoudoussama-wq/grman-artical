@@ -21,38 +21,13 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y \
-            build-essential \
-            git \
-            python3-dev \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libgstreamer1.0-dev \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
-            libharfbuzz-dev \
-            libfribidi-dev \
-            pkg-config \
-            libgl1-mesa-dev \
-            libgles2-mesa-dev \
-            libmtdev-dev \
-            xclip \
-            xsel \
-            libjpeg-dev \
-            autoconf \
-            automake \
-            libtool \
-            cmake \
-            unzip \
-            zip \
-            openjdk-17-jdk
+            build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev \
+            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev \
+            libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good libharfbuzz-dev \
+            libfribidi-dev pkg-config libgl1-mesa-dev libgles2-mesa-dev \
+            libmtdev-dev xclip xsel libjpeg-dev autoconf automake libtool \
+            cmake unzip zip openjdk-17-jdk
 
       - name: Install Buildozer and Cython
         run: |
@@ -60,9 +35,19 @@ jobs:
           pip install "buildozer>=1.5.0"
           pip install "cython<3.0.0"
 
+      # --- NEW STEP TO FIX THE LICENSE ERROR ---
+      - name: Accept Android SDK Licenses
+        run: |
+          mkdir -p $HOME/.android
+          touch $HOME/.android/repositories.cfg
+          # Accept all licenses automatically
+          yes | sdkmanager --licenses || true
+          # Pre-install build-tools to avoid aidl errors
+          yes | sdkmanager "build-tools;33.0.0" "platforms;android-33" "platform-tools"
+
       - name: Build with Buildozer
         run: |
-          # Removed 'clean' because GitHub starts fresh anyway
+          # We use -v to see the detailed log
           buildozer -v android debug
         env:
           ACCEPT_SDK_LICENSE: "yes"
