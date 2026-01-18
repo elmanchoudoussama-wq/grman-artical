@@ -17,6 +17,13 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Cache Buildozer dependencies to speed up subsequent builds
+      - name: Cache Buildozer global directory
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+
       - name: Install System Dependencies
         run: |
           sudo apt update
@@ -35,19 +42,26 @@ jobs:
           pip install "buildozer>=1.5.0"
           pip install "cython<3.0.0"
 
-      # --- NEW STEP TO FIX THE LICENSE ERROR ---
       - name: Accept Android SDK Licenses
         run: |
+          # Find the sdkmanager in the GitHub Runner environment
+          SDK_MANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -f "$SDK_MANAGER" ]; then
+            SDK_MANAGER="$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+          fi
+          
           mkdir -p $HOME/.android
           touch $HOME/.android/repositories.cfg
-          # Accept all licenses automatically
-          yes | sdkmanager --licenses || true
-          # Pre-install build-tools to avoid aidl errors
-          yes | sdkmanager "build-tools;33.0.0" "platforms;android-33" "platform-tools"
+          
+          # Force accept all licenses
+          yes | $SDK_MANAGER --licenses || true
+          
+          # Pre-install the exact build-tools versions from your spec
+          yes | $SDK_MANAGER "build-tools;33.0.0" "platforms;android-33" "platform-tools"
 
       - name: Build with Buildozer
         run: |
-          # We use -v to see the detailed log
+          # Buildozer will now find the licenses already accepted
           buildozer -v android debug
         env:
           ACCEPT_SDK_LICENSE: "yes"
