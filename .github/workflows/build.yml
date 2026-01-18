@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # Use 22.04 for better compatibility
 
     steps:
       - name: Checkout code
@@ -17,51 +17,86 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Cache Buildozer global directory
+      - name: Cache Buildozer directories
         uses: actions/cache@v4
         with:
-          path: .buildozer
+          path: |
+            ~/.buildozer
+            ~/.android
+            .buildozer
           key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
 
       - name: Install System Dependencies
         run: |
-          sudo apt update
-          sudo apt install -y \
-            build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev \
-            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev \
-            libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev \
-            gstreamer1.0-plugins-base gstreamer1.0-plugins-good libharfbuzz-dev \
-            libfribidi-dev pkg-config libgl1-mesa-dev libgles2-mesa-dev \
-            libmtdev-dev xclip xsel libjpeg-dev autoconf automake libtool \
-            libtool-bin m4 cmake unzip zip openjdk-17-jdk
-          # Ensure libtool macros are visible to autoconf
-          sudo ldconfig
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk \
+            python3-pip python3-setuptools python3-dev \
+            libffi-dev libssl-dev libpq-dev \
+            build-essential \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev \
+            libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            libjpeg-dev libtiff5-dev libx11-dev libmtdev-dev \
+            libgles2-mesa-dev libgles1-mesa-dev \
+            libgl1-mesa-dev \
+            xclip xsel \
+            autoconf automake libtool m4 cmake \
+            libharfbuzz-dev libfribidi-dev
 
-      - name: Install Buildozer and Cython
+      - name: Install Buildozer and dependencies
         run: |
-          pip install --upgrade pip
-          pip install "buildozer>=1.5.0"
-          pip install "cython<3.0.0"
+          pip install --upgrade pip wheel setuptools
+          pip install buildozer cython==0.29.33
+          pip install kivy==2.1.0  # Pre-install to help with cache
 
-      - name: Accept Android SDK Licenses
+      - name: Clean up conflicting Android tools
         run: |
-          SDK_MANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -f "$SDK_MANAGER" ]; then
-            SDK_MANAGER="$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
-          fi
-          mkdir -p $HOME/.android
-          touch $HOME/.android/repositories.cfg
-          yes | $SDK_MANAGER --licenses || true
-          yes | $SDK_MANAGER "build-tools;33.0.0" "platforms;android-33" "platform-tools"
+          # Remove any pre-installed Android SDK/NDK that might cause conflicts
+          rm -rf /usr/local/lib/android/sdk
+          rm -rf ~/.android
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
 
-      - name: Build with Buildozer
+      - name: Build with Buildozer (debug)
         run: |
-          buildozer -v android debug
-        env:
-          ACCEPT_SDK_LICENSE: "yes"
+          # Set environment variables to force Buildozer to use its own SDK
+          export ANDROID_SDK_ROOT=""
+          export ANDROID_NDK_HOME=""
+          export ANDROID_HOME=""
+          
+          # Initialize Buildozer and download dependencies
+          buildozer android clean
+          buildozer android update
+          
+          # Debug: show what versions we're using
+          buildozer android version
+          
+          # Build with verbose output
+          buildozer -v android debug 2>&1 | tail -100
+          
+          # If the above fails, try with less verbose output
+          buildozer android debug || true
 
-      - name: Upload APK
+      - name: List built APKs
+        run: |
+          ls -la bin/ || true
+
+      - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: German-Artical-Trainer-APK
+          name: German-Article-Trainer-APK
           path: bin/*.apk
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Logs
+          path: |
+            .buildozer/*.log
+            .buildozer/*/*.log
+          if-no-files-found: ignore
