@@ -33,7 +33,9 @@ jobs:
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good libharfbuzz-dev \
             libfribidi-dev pkg-config libgl1-mesa-dev libgles2-mesa-dev \
             libmtdev-dev xclip xsel libjpeg-dev autoconf automake libtool \
-            m4 cmake unzip zip openjdk-17-jdk
+            libtool-bin m4 cmake unzip zip openjdk-17-jdk
+          # Ensure libtool macros are visible to autoconf
+          sudo ldconfig
 
       - name: Install Buildozer and Cython
         run: |
@@ -43,19 +45,13 @@ jobs:
 
       - name: Accept Android SDK Licenses
         run: |
-          # Find the sdkmanager in the GitHub Runner environment
           SDK_MANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -f "$SDK_MANAGER" ]; then
             SDK_MANAGER="$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
           fi
-          
           mkdir -p $HOME/.android
           touch $HOME/.android/repositories.cfg
-          
-          # Force accept all licenses
           yes | $SDK_MANAGER --licenses || true
-          
-          # Pre-install the exact build-tools versions
           yes | $SDK_MANAGER "build-tools;33.0.0" "platforms;android-33" "platform-tools"
 
       - name: Build with Buildozer
