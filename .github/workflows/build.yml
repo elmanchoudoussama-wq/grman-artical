@@ -54,16 +54,15 @@ jobs:
             zip \
             openjdk-17-jdk
 
-      - name: Install Buildozer
+      - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip
-          pip install buildozer
-          pip install cython==0.29.33
+          pip install "buildozer>=1.5.0"
+          pip install "cython<3.0.0"
 
       - name: Build with Buildozer
         run: |
-          # The 'clean' command ensures old broken cached versions are deleted
-          buildozer android clean
+          # Removed 'clean' because GitHub starts fresh anyway
           buildozer -v android debug
         env:
           ACCEPT_SDK_LICENSE: "yes"
