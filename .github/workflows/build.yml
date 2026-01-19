@@ -13,32 +13,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt update
           sudo apt-get remove -y libunwind-14-dev || true
           
-          # We keep all your original tools + add the ones required for Arabic/Pillow
+          # We add libharfbuzz-dev and libfribidi-dev so the Arabic libs can compile
           sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev \
           libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev \
           libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
           build-essential ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-          libltdl-dev python3-dev \
-          libharfbuzz-dev libfribidi-dev libtool-bin m4 libjpeg-dev
-          
-          # Explicitly update ldconfig to see the new libraries
-          sudo ldconfig
+          libltdl-dev python3-dev libharfbuzz-dev libfribidi-dev libtool-bin m4
           
           pip3 install --user --upgrade Cython==0.29.33 virtualenv buildozer
 
       - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          # We accept the SDK licenses via command line before building
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          
-          # Run the build
-          buildozer -v android debug
+          # Force clean build to ensure libraries are compiled with the new system tools
+          buildozer android debug
         env:
           APP_ANDROID_ACCEPT_SDK_LICENSE: "True"
 
@@ -46,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GermanTrainer-APK
-          path: bin/*.apk 
+          path: bin/*.apk
