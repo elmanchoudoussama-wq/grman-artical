@@ -1,40 +1,74 @@
-name: Build German Artical Trainer
-on: [push]
+name: Build German Article Trainer APK
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+
     steps:
+      # 1. Get your code
       - uses: actions/checkout@v4
 
+      # 2. Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # 3. Set up Java (Required for Android)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
+      # 4. Install Dependencies (THE FIX FOR ARABIC)
       - name: Install System Dependencies
         run: |
-          sudo apt update
-          sudo apt-get remove -y libunwind-14-dev || true
-          
-          # We add libharfbuzz-dev and libfribidi-dev so the Arabic libs can compile
-          sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev \
-          libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev \
-          libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-          build-essential ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-          libltdl-dev python3-dev libharfbuzz-dev libfribidi-dev libtool-bin m4
-          
-          pip3 install --user --upgrade Cython==0.29.33 virtualenv buildozer
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pip \
+            build-essential \
+            git \
+            python3 \
+            python3-dev \
+            ffmpeg \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            libswscale-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            zlib1g-dev \
+            libgstreamer1.0-gstreamer-bufferpool-1.0 \
+            libltdl-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            autoconf \
+            libtool \
+            pkg-config
 
+      # 5. Install Buildozer
+      - name: Install Buildozer
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython==0.29.33
+
+      # 6. Build the APK
       - name: Build with Buildozer
         run: |
-          export PATH=$PATH:$HOME/.local/bin
-          # Force clean build to ensure libraries are compiled with the new system tools
-          buildozer android debug
+          # We run specific commands to accept licenses automatically
+          yes | buildozer android debug
         env:
+          # This ensures we don't get stuck on license agreements
           APP_ANDROID_ACCEPT_SDK_LICENSE: "True"
 
+      # 7. Upload the APK to GitHub Actions so you can download it
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
